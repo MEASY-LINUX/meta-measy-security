@@ -26,9 +26,9 @@ include ${@oe.utils.conditional('MYIR_OPTEE_STORAGE', 'rpmb', 'linux-optee.inc',
 #
 #   Mode          | MYIR_FIT_ENABLE | MYIR_KERNEL_HAB_SIGN
 #   --------------|-----------------|-----------------------
-#   nonfit        | 0               | 1   ¡û zImage with IVT+CSF
-#   fit           | 1               | 0   ¡û fitImage with external HAB+internal TEE
-#   (empty/other) | (user-set)      | (user-set) ¡û no override
+#   nonfit        | 0               | 1   zImage with IVT+CSF
+#   fit           | 1               | 0   fitImage with external HAB+internal TEE
+#   (empty/other) | (user-set)      | (user-set) no override
 #
 # The python block enforces mutual exclusion. The bb.utils.contains()
 # includes below then pull in the correct signing method.
@@ -69,7 +69,7 @@ __hab_tee_mode_config[eventmask] = "bb.event.ConfigParsed"
 # ==========================================================================
 # Mutual exclusion: FIT Image vs HAB kernel (IVT+CSF) signing
 #
-# These two kernel signing methods are mutually exclusive ¡ª you must
+# These two kernel signing methods are mutually exclusive you must
 # choose exactly one (or none). Both set to "1" is a configuration error.
 #
 # MYIR_HAB_TEE_MODE auto-config runs before this check (ConfigParsed
