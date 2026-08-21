@@ -1,6 +1,14 @@
 # Secure boot config fragments for MYIR i.MX95
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
+# i.MX8MP HAB support is deliberately separate from the i.MX6ULL HAB and
+# i.MX95 AHAB switches below.  CONFIG_IMX_HAB makes the NXP booti path call
+# authenticate_image() for the ARM64 Image before Linux is entered.
+SRC_URI:append:myd-js8mpq = " \
+    ${@bb.utils.contains('MYIR_IMX8MP_HAB_ENABLE', '1', \
+        'file://myd-js8mpq/imx8mp-hab.cfg', '', d)} \
+"
+
 # AHAB boot support (i.MX95 only)
 SRC_URI:append:mx9-generic-bsp = " \
    ${@bb.utils.contains('MYIR_AHAB_ENABLE', '1', \

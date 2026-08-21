@@ -270,3 +270,8 @@ python () {
         bb.warn('Setting UBOOT_SIGN_ENABLE=0 to avoid conflicts...')
         d.setVar('UBOOT_SIGN_ENABLE', '0')
 }
+
+# Parse the i.MX8MP HAB task only for MYD-JS8MPQ secure builds.  Keeping the
+# include conditional prevents any task-graph or dependency change for the
+# existing i.MX6ULL HAB and JMX95 AHAB flows.
+include ${@'imx8mp-hab-sign.inc' if d.getVar('MACHINE') == 'myd-js8mpq' and d.getVar('MYIR_IMX8MP_HAB_ENABLE') == '1' else ''}
