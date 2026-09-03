@@ -3,7 +3,24 @@
 inherit myir-hab python3native
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI += "file://imx8mp_habv4/imx8mp_sign_boot.py"
+SRC_URI += " \
+    file://imx8mp_habv4/imx8mp_sign_boot.py \
+    file://imx8mp_habv4/imx8mp_gen_fuse_cmds.py \
+"
+
+# i.MX8MP OCOTP fuse layout.  Keep these variables local to the 8MP include;
+# they must not alter the i.MX6ULL HAB or i.MX95 AHAB fuse paths.  The values
+# are the i.MX8MP HABv4 layout: SRK_HASH occupies bank 6, words 0..3, followed
+# by bank 7, words 0..3.  The HAB close bit is SEC_CONFIG at bank 1, word 3,
+# bit 25.  A machine can override them if another silicon revision requires a
+# different map.
+MYIR_IMX8MP_HAB_SRK_FUSE_BANK_START ?= "6"
+MYIR_IMX8MP_HAB_SRK_FUSE_WORD_START ?= "0"
+MYIR_IMX8MP_HAB_SRK_FUSE_WORD_COUNT ?= "8"
+MYIR_IMX8MP_HAB_SRK_FUSE_WORDS_PER_BANK ?= "4"
+MYIR_IMX8MP_HAB_CLOSE_FUSE_BANK ?= "1"
+MYIR_IMX8MP_HAB_CLOSE_FUSE_WORD ?= "3"
+MYIR_IMX8MP_HAB_CLOSE_FUSE_VALUE ?= "0x02000000"
 
 python () {
     conflicts = []
@@ -143,6 +160,34 @@ addtask imx8mp_hab_sign_boot after do_compile before do_install do_deploy
 do_deploy[nostamp] = "1"
 
 do_deploy:append() {
+    if [ "${MACHINE}" = "myd-js8mpq" ] && [ "${MYIR_IMX8MP_HAB_ENABLE}" = "1" ]; then
+        # Generate during every secure deploy instead of relying on a separate
+        # task edge.  This ensures the file comes from the SRK selected for the
+        # current build and cannot be a stale artifact from an earlier run.
+        if [ ! -f "${MYIR_HAB_CST_SRK_FUSE}" ]; then
+            bbfatal "i.MX8MP HAB SRK fuse file not found: ${MYIR_HAB_CST_SRK_FUSE}"
+        fi
+
+        install -d "${WORKDIR}/imx8mp-hab-fuse"
+        ${PYTHON} "${UNPACKDIR}/imx8mp_habv4/imx8mp_gen_fuse_cmds.py" \
+            --srk-fuse "${MYIR_HAB_CST_SRK_FUSE}" \
+            --output "${WORKDIR}/imx8mp-hab-fuse/fuse-cmds.txt" \
+            --srk-bank-start "${MYIR_IMX8MP_HAB_SRK_FUSE_BANK_START}" \
+            --srk-word-start "${MYIR_IMX8MP_HAB_SRK_FUSE_WORD_START}" \
+            --srk-word-count "${MYIR_IMX8MP_HAB_SRK_FUSE_WORD_COUNT}" \
+            --srk-words-per-bank "${MYIR_IMX8MP_HAB_SRK_FUSE_WORDS_PER_BANK}" \
+            --close-bank "${MYIR_IMX8MP_HAB_CLOSE_FUSE_BANK}" \
+            --close-word "${MYIR_IMX8MP_HAB_CLOSE_FUSE_WORD}" \
+            --close-value "${MYIR_IMX8MP_HAB_CLOSE_FUSE_VALUE}"
+
+        if [ ! -s "${WORKDIR}/imx8mp-hab-fuse/fuse-cmds.txt" ]; then
+            bbfatal "i.MX8MP HAB fuse command file was not generated"
+        fi
+        install -m 0644 "${WORKDIR}/imx8mp-hab-fuse/fuse-cmds.txt" \
+            "${DEPLOYDIR}/fuse-cmds.txt"
+        bbnote "i.MX8MP HAB: deployed fuse-cmds.txt"
+    fi
+
     for type in ${UBOOT_CONFIG}; do
         boot_base="imx-boot${BOOT_VARIANT}-${MACHINE}-${type}.bin"
         for target in ${IMXBOOT_TARGETS}; do

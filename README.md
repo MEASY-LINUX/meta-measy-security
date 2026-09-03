@@ -50,8 +50,20 @@ Deployment keeps the unsigned input beside the signed artifact and writes a
 CSF binaries.  Any missing input, inconsistent layout, CST error, oversized
 CSF, or final-size mismatch aborts the BitBake task.
 
-This integration signs build artifacts only.  It does not program SRK fuses,
-close the device, or otherwise modify OTP state.
+For an enabled MYD-JS8MPQ HAB build, imx-boot deployment also generates
+`fuse-cmds.txt` from the exact `SRK_1_2_3_4_fuse.bin` selected by
+`MYIR_HAB_CST_SRK_FUSE`.  The file contains the i.MX8MP SRK_HASH commands for
+OCOTP bank 6, words 0 through 3, then bank 7, words 0 through 3, followed by
+the SEC_CONFIG close command for bank 1, word 3, bit 25.  Generation validates
+that the input is exactly eight 32-bit words; a missing or malformed fuse file
+aborts the secure deploy.  Generation runs directly inside each secure
+`do_deploy`, so it does not depend on an optional intermediate task and cannot
+silently reuse an old command file.
+
+This integration only generates the command text.  It never executes a fuse
+command, programs SRK fuses, closes the device, or otherwise modifies OTP
+state.  Fuse programming and closing are irreversible and must only be done
+after all signed images boot without HAB events.
 
 ## i.MX95 AHAB Architecture
 
