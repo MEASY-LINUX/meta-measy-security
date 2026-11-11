@@ -12,17 +12,8 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 python __anonymous() {
     storage = d.getVar("MYIR_OPTEE_STORAGE")
     if storage == "rpmb":
-        # OP-TEE kernel driver
-        d.appendVar("SRC_URI", " file://optee.cfg")
-        d.appendVar("DELTA_KERNEL_DEFCONFIG", " optee.cfg")
-
-        # Trusted Keys via TEE
-        d.appendVar("SRC_URI", " file://tee.cfg")
-        d.appendVar("DELTA_KERNEL_DEFCONFIG", " tee.cfg")
-
-        # RPMB subsystem - critical: enables in-kernel RPMB routing
-        d.appendVar("SRC_URI", " file://rpmb.cfg")
-        d.appendVar("DELTA_KERNEL_DEFCONFIG", " rpmb.cfg")
+        # kernel-yocto consumes .cfg entries from SRC_URI as fragments.
+        d.appendVar("SRC_URI", " file://optee.cfg file://tee.cfg file://rpmb.cfg")
 
         bb.debug(1, "OP-TEE RPMB-FS: optee.cfg + tee.cfg + rpmb.cfg added")
 }

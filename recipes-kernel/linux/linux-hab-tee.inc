@@ -30,13 +30,8 @@ python __anonymous() {
         bb.debug(1, 'linux-hab-tee: skipping, already handled by linux-optee.inc (RPMB)')
         return
 
-    # OP-TEE kernel driver support
-    d.appendVar('SRC_URI', ' file://optee.cfg')
-    d.appendVar('DELTA_KERNEL_DEFCONFIG', ' optee.cfg')
-
-    # Trusted Keys via TEE
-    d.appendVar('SRC_URI', ' file://tee.cfg')
-    d.appendVar('DELTA_KERNEL_DEFCONFIG', ' tee.cfg')
+    # kernel-yocto consumes .cfg entries from SRC_URI as fragments.
+    d.appendVar('SRC_URI', ' file://optee.cfg file://tee.cfg')
 
     bb.debug(1, 'linux-hab-tee: optee.cfg + tee.cfg added for HAB_TEE_MODE=%s' % mode)
 }

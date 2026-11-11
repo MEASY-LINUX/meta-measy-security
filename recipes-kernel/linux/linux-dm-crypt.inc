@@ -7,9 +7,3 @@ SRC_URI:append = "\
     file://trusted-keys.cfg \
     file://${MYIR_ENC_KEY_BACKEND}.cfg \
 "
-
-DELTA_KERNEL_DEFCONFIG:append = " \
-    dm-crypt.cfg \
-    trusted-keys.cfg \
-    ${MYIR_ENC_KEY_BACKEND}.cfg \
-"
