@@ -100,6 +100,9 @@ do_image_complete[nostamp] = "1"
 #   -> kernel:do_deploy -> imx-boot:do_deploy -> rootfs:do_image_wic
 do_image[depends] += "${DM_VERITY_IMAGE}:do_image_${DM_VERITY_IMAGE_TYPE}"
 IMAGE_FSTYPES = "${INITRAMFS_FSTYPES}"
+# Machine image types apply to every image recipe. Keep disk/rootfs formats
+# out of this initramfs or WIC depends on the FIT image that embeds it.
+IMAGE_FSTYPES:remove = "ext4 ext4.verity wic wic.bmap wic.gz wic.zst"
 
 inherit core-image
 
