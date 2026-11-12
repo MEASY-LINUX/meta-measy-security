@@ -1,0 +1,52 @@
+From 40b9a929ebc17ea2fdb257bd154c0c06b9441f28 Mon Sep 17 00:00:00 2001
+From: MYIR Security Team <support@myirtech.com>
+Date: Wed, 11 Nov 2026 18:00:00 +0800
+Subject: [PATCH] myd-jmx95: select signed FIT at runtime
+
+The NXP common environment defines preboot=qb save after CONFIG_PREBOOT is
+added to the default environment.  Consequently the board's preboot command
+wins and the FIT selection from the security config fragment is never run.
+The AHAB path then tries to load an OS container which is intentionally absent
+from the dm-verity image.
+
+Select the signed FIT in board_late_init(), after the saved environment has
+been loaded.  Keep the existing sec_boot=no behavior: on this board that
+environment variable selects the OS-container kernel path, while the boot
+container itself has already been authenticated by AHAB.
+
+Set a FIT configuration matching CONFIG_DEFAULT_FDT_FILE only when the user
+has not selected one explicitly.
+
+Upstream-Status: Inappropriate [MYIR board security configuration]
+
+Signed-off-by: MYIR Security Team <support@myirtech.com>
+---
+ board/myir/myd_jmx95/myd_jmx95.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/board/myir/myd_jmx95/myd_jmx95.c b/board/myir/myd_jmx95/myd_jmx95.c
+index d7ed295e8b6..1d427b85084 100644
+--- a/board/myir/myd_jmx95/myd_jmx95.c
++++ b/board/myir/myd_jmx95/myd_jmx95.c
+@@ -268,6 +268,19 @@ int board_late_init(void)
+ 	env_set("sec_boot", "yes");
+ #endif
+ 
++#ifdef CONFIG_FIT_SIGNATURE
++	/*
++	 * AHAB has authenticated imx-boot.  Select bootm so U-Boot verifies
++	 * the signed kernel, ramdisk and DTB in the FIT instead of looking for
++	 * a separately signed OS container.
++	 */
++	env_set("image", "fitImage");
++	env_set("boot_fit", "yes");
++	env_set("sec_boot", "no");
++	if (!env_get("fit_config"))
++		env_set("fit_config", "conf-" CONFIG_DEFAULT_FDT_FILE);
++#endif
++
+ 	myir_set_data_from_eeprom();
+ 	env_set("u-boot_version", PLAIN_VERSION " (" U_BOOT_DATE " - "
+ 		U_BOOT_TIME ")");
+-- 
+2.34.1

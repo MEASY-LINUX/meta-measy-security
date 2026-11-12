@@ -21,6 +21,14 @@ SRC_URI:append = " \
         "file://fitimage-boot.cfg", "", d)} \
 "
 
+# The MYD-JMX95 board environment also defines preboot=qb save, which takes
+# precedence over CONFIG_PREBOOT. Select FIT from board_late_init() so the
+# secure boot path also works when an older environment is saved in eMMC.
+SRC_URI:append:myd-jmx95x-b0 = " \
+    ${@bb.utils.contains("ENABLE_FITIMAGE_SIGN", "1", \
+        "file://0001-myd-jmx95-select-signed-FIT-at-runtime.patch", "", d)} \
+"
+
 # Secure boot combined config (AHAB: i.MX95)
 SRC_URI:append = " \
     ${@bb.utils.contains('MYIR_AHAB_ENABLE', '1', \
