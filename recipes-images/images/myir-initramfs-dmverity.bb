@@ -109,6 +109,11 @@ inherit core-image
 IMAGE_ROOTFS_SIZE = "8192"
 IMAGE_ROOTFS_EXTRA_SPACE = "0"
 
+# The initramfs must embed the verity metadata produced for this exact rootfs.
+# WIC/boot dependencies are deferred to do_image_wic by myir-dmverity.bbclass,
+# so this ordering does not create the old rootfs -> kernel -> initramfs cycle.
+do_rootfs[depends] += "${@'%s:do_image_%s' % (d.getVar('DM_VERITY_IMAGE'), d.getVar('DM_VERITY_IMAGE_TYPE')) if d.getVar('DM_VERITY_IMAGE') else ''}"
+
 # ============================================================================
 # deploy_verity_hash()
 #
@@ -117,9 +122,8 @@ IMAGE_ROOTFS_EXTRA_SPACE = "0"
 #   2. dm-verity-public.pem — RSA public key (if signing enabled)
 #   3. dm-verity-roothash.sig — root hash signature (if signing enabled)
 #
-# On first pass (no .verity.env yet): creates placeholder files
-# so the build doesn't fail.  The real files are embedded on the
-# second pass after DM_VERITY_IMAGE has been built.
+# do_rootfs depends on the protected image's do_image_ext4 task, so missing
+# metadata is a hard error rather than a placeholder that could reach a FIT.
 # ============================================================================
 deploy_verity_hash() {
     ENV_FILE=$(ls ${STAGING_VERITY_DIR}/*.${DM_VERITY_IMAGE_TYPE}.verity.env 2>/dev/null | head -1)
@@ -141,7 +145,7 @@ deploy_verity_hash() {
                 install -m 0644 "$SIG_FILE" ${IMAGE_ROOTFS}${datadir}/misc/dm-verity-roothash.sig
                 bbnote "myir-initramfs:   deployed roothash.sig"
             else
-                bbwarn "myir-initramfs: roothash.sig not found in ${STAGING_VERITY_DIR}"
+                bbfatal "myir-initramfs: roothash.sig not found in ${STAGING_VERITY_DIR}"
             fi
 
             PUBKEY_FILE="${STAGING_VERITY_DIR}/public_key.pem"
@@ -149,21 +153,11 @@ deploy_verity_hash() {
                 install -m 0644 "$PUBKEY_FILE" ${IMAGE_ROOTFS}${datadir}/misc/dm-verity-public.pem
                 bbnote "myir-initramfs:   deployed public_key.pem"
             else
-                bbwarn "myir-initramfs: public_key.pem not found in ${STAGING_VERITY_DIR}"
+                bbfatal "myir-initramfs: public_key.pem not found in ${STAGING_VERITY_DIR}"
             fi
         fi
     else
-        bbwarn "myir-initramfs: NO dm-verity.env found in ${STAGING_VERITY_DIR}"
-        bbwarn "This is expected on the FIRST build pass (cleansstate workflow)."
-        bbwarn "Run 'bitbake ${DM_VERITY_IMAGE}' first to generate the root hash,"
-        bbwarn "then run 'bitbake myir-initramfs-dmverity -c cleansstate' before the"
-        bbwarn "second 'bitbake ${DM_VERITY_IMAGE}'."
-
-        # Create a placeholder so the initramfs doesn't break
-        echo "# PLACEHOLDER - rebuild after DM_VERITY_IMAGE build" > \
-            ${IMAGE_ROOTFS}${datadir}/misc/dm-verity.env
-        echo "ROOT_HASH=PLACEHOLDER_PLEASE_REBUILD" >> \
-            ${IMAGE_ROOTFS}${datadir}/misc/dm-verity.env
+        bbfatal "myir-initramfs: no dm-verity.env found in ${STAGING_VERITY_DIR}"
     fi
 }
 IMAGE_PREPROCESS_COMMAND += "deploy_verity_hash;"

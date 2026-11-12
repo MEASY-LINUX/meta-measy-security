@@ -65,6 +65,22 @@ dmverity_run() {
 
     . /usr/share/misc/dm-verity.env
 
+    # cryptsetup 2.8 appends "[bytes]" to block-size values printed by
+    # veritysetup format. Accept metadata generated before the build-time
+    # parser was fixed, but never pass a value with units to veritysetup open.
+    DATA_BLOCK_SIZE="$(printf '%s' "${DATA_BLOCK_SIZE}" | sed 's/\[bytes\]$//')"
+
+    case "${DATA_BLOCK_SIZE}" in
+        ''|*[!0-9]*)
+            dmverity_fatal "Invalid DATA_BLOCK_SIZE in dm-verity.env: ${DATA_BLOCK_SIZE}" ;;
+    esac
+    if [ "${SEPARATE_HASH}" != "1" ]; then
+        case "${DATA_SIZE}" in
+            ''|*[!0-9]*)
+                dmverity_fatal "Invalid DATA_SIZE in dm-verity.env: ${DATA_SIZE}" ;;
+        esac
+    fi
+
     # Defaults for MYIR-specific variables (backward compat)
     MYIR_OVERLAY="${MYIR_OVERLAY:-0}"
     MYIR_SIGN_ROOTHASH="${MYIR_SIGN_ROOTHASH:-0}"
@@ -178,7 +194,7 @@ dmverity_run() {
     fi
 
     if [ $? -ne 0 ]; then
-        dmverity_fatal "veritysetup failed — root hash mismatch or device error"
+        dmverity_fatal "veritysetup failed: invalid parameters, root hash mismatch, or device error"
     fi
 
     dmverity_msg "dm-verity device /dev/mapper/rootfs created"

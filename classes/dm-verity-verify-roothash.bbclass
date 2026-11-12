@@ -11,6 +11,9 @@
 # We inject MYIR feature flags and RSA root hash signing
 # BEFORE that return statement.
 
+MYIR_DM_VERITY_PRIVATE_KEY ?= "${TOPDIR}/keys/fit/dev.key"
+MYIR_DM_VERITY_CERTIFICATE ?= "${TOPDIR}/keys/fit/dev.crt"
+
 # Full override of process_verity() from dm-verity-img.bbclass
 # with MYIR additions injected at the right point.
 process_verity() {
@@ -21,13 +24,14 @@ process_verity() {
     # Each line contains a key and a value string delimited by ':'. Read the
     # two parts into separate variables and process them separately. For the
     # key part: convert the names to upper case and replace spaces with
-    # underscores to create correct shell variable names. For the value part:
-    # just trim all white-spaces.
+    # underscores to create correct shell variable names. For the value part,
+    # trim white-spaces and remove units, matching the current 6.18
+    # dm-verity-img.bbclass parser. veritysetup open accepts only numbers.
     IFS=":"
     while read KEY VAL; do
         printf '%s=%s\n' \
             "$(echo "$KEY" | tr '[:lower:]' '[:upper:]' | sed 's/ /_/g')" \
-            "$(echo "$VAL" | tr -d ' \t')" >> $ENV
+            "$(echo "$VAL" | tr -d ' \t' | sed 's/\[.*\]//')" >> $ENV
     done
 
     # Add partition size
@@ -40,24 +44,33 @@ process_verity() {
     echo "MYIR_OVERLAY=${MYIR_DM_VERITY_OVERLAY}" >> ${ENV}
     echo "MYIR_SIGN_ROOTHASH=${MYIR_DM_VERITY_SIGN_ROOTHASH}" >> ${ENV}
 
-    # RSA root hash signing (NXP-style)
+    # Sign the root hash with the provisioned key. Never generate or replace
+    # signing keys as part of an image build.
     if [ "${MYIR_DM_VERITY_SIGN_ROOTHASH}" = "1" ]; then
-        local private_key="${STAGING_VERITY_DIR}/private_key.pem"
+        local private_key="${MYIR_DM_VERITY_PRIVATE_KEY}"
+        local certificate="${MYIR_DM_VERITY_CERTIFICATE}"
         local public_key="${STAGING_VERITY_DIR}/public_key.pem"
         local rh="${STAGING_VERITY_DIR}/roothash.txt"
         local rhs="${STAGING_VERITY_DIR}/roothash.sig"
-        rm -f $private_key $public_key $rh $rhs
+        rm -f $public_key $rh $rhs
 
-        # Create RSA private key
-        openssl genrsa -out $private_key 2048
+        [ -f "$private_key" ] || bbfatal "Missing dm-verity private key: $private_key"
+        [ -f "$certificate" ] || bbfatal "Missing dm-verity certificate: $certificate"
 
-        # Fetch public key from the generated private key
-        openssl rsa -in $private_key -pubout -out $public_key
+        local key_pub_hash
+        local cert_pub_hash
+        key_pub_hash=$(openssl pkey -in "$private_key" -pubout | openssl dgst -sha256)
+        cert_pub_hash=$(openssl x509 -in "$certificate" -pubkey -noout | openssl dgst -sha256)
+        [ "$key_pub_hash" = "$cert_pub_hash" ] || \
+            bbfatal "dm-verity private key and certificate do not match"
+
+        openssl x509 -in "$certificate" -pubkey -noout > $public_key
 
         # Store roothash in a file and sign it
         root_hash=$(grep ^ROOT_HASH $ENV | sed 's/ROOT_HASH=//')
+        [ -n "$root_hash" ] || bbfatal "Missing ROOT_HASH in dm-verity environment: $ENV"
         echo ${root_hash} | tr -d '\n' > $rh
-        openssl dgst -sha256 -sign $private_key -out $rhs $rh
+        openssl dgst -sha256 -sign "$private_key" -out $rhs $rh
     fi
 
     # === End MYIR additions ===
