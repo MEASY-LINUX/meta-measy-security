@@ -89,7 +89,7 @@ MYIR_HABV4_CST_ARGS       ??= ""
 # ==========================================================================
 # Script paths (defaults based on layer layout)
 # ==========================================================================
-MX6ULL_HABV4_DIR             ??= "${BSPDIR}/sources/meta-myir/meta-myir-security/recipes-bsp/imx-mkimage/files/mx6ull_habv4"
+MX6ULL_HABV4_DIR             ??= "${MEASY_SECURITY_LAYERDIR}/recipes-bsp/imx-mkimage/files/mx6ull_habv4"
 MX6ULL_GENIVT_FIT            ??= "${MX6ULL_HABV4_DIR}/genIVT_fit.sh"
 MX6ULL_SIGN_FIT              ??= "${MX6ULL_HABV4_DIR}/mx6ull_sign_fit.sh"
 MX6ULL_CSF_TEMPLATE          ??= "${MX6ULL_HABV4_DIR}/mx6ull_fit_habv4.csf.template"

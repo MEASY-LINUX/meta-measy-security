@@ -20,7 +20,7 @@ inherit myir-kernel-container-sign
 # NOTE: Use absolute paths because LAYERDIR is not available in shell task
 # context, and THISDIR may resolve incorrectly when multiple bbappends
 # overlay the same recipe with modified FILESEXTRAPATHS.
-MYIR_AHAB_SECURITY_LAYER = "${BSPDIR}/sources/meta-myir/meta-myir-security"
+MYIR_AHAB_SECURITY_LAYER = "${MEASY_SECURITY_LAYERDIR}"
 MYIR_AHAB_CSF_TEMPLATE   = "${MYIR_AHAB_SECURITY_LAYER}/recipes-bsp/imx-mkimage/files/mx95_ahab.csf.template"
 MYIR_AHAB_GEN_CSF_SCRIPT = "${MYIR_AHAB_SECURITY_LAYER}/recipes-bsp/imx-mkimage/files/mx95_gen_csf.py"
 MYIR_AHAB_GEN_FUSE_SCRIPT = "${MYIR_AHAB_SECURITY_LAYER}/recipes-bsp/imx-mkimage/files/gen_fuse_cmds.py"
@@ -61,7 +61,7 @@ do_ahab_sign() {
 	# Verify keys exist
 	if [ ! -f "${MYIR_AHAB_CST_SRK}" ]; then
 		bbfatal "SRK table not found: ${MYIR_AHAB_CST_SRK}"
-		bbfatal "Please generate keys first. See meta-myir-security README."
+		bbfatal "Please generate keys first. See meta-measy-security README."
 	fi
 
 	if [ ! -f "${MYIR_AHAB_CST_SRK_CERT}" ]; then
