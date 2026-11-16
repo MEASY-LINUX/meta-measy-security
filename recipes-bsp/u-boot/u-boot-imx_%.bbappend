@@ -24,7 +24,7 @@ SRC_URI:append = " \
 # The MYD-JMX95 board environment also defines preboot=qb save, which takes
 # precedence over CONFIG_PREBOOT. Select FIT from board_late_init() so the
 # secure boot path also works when an older environment is saved in eMMC.
-SRC_URI:append:myd-jmx95x-b0 = " \
+SRC_URI:append:myir-jmx95 = " \
     ${@bb.utils.contains("ENABLE_FITIMAGE_SIGN", "1", \
         "file://0001-myd-jmx95-select-signed-FIT-at-runtime.patch", "", d)} \
 "
