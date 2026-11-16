@@ -10,14 +10,17 @@ DM_VERITY_SALT_INPUT ?= "${MACHINE}-myir-dmverity-v2"
 DM_VERITY_SETUP_ARGS = "${@'--salt=' + __import__('hashlib').sha256((d.getVar('DM_VERITY_SALT_INPUT') or '').encode('utf-8')).hexdigest()}"
 
 # Enable dm-verity image generation
-IMAGE_CLASSES += "dm-verity-img"
+IMAGE_CLASSES += "${@'dm-verity-img' if d.getVar('ENABLE_DM_VERITY') == '1' else ''}"
 
 # Root hash RSA signing + MYIR overlay/env injection
 # dm-verity-verify-roothash.bbclass overrides process_verity() from
 # dm-verity-img.bbclass to inject MYIR flags before the SEPARATE_HASH return.
-IMAGE_CLASSES += "dm-verity-verify-roothash"
+IMAGE_CLASSES += "${@'dm-verity-verify-roothash' if d.getVar('ENABLE_DM_VERITY') == '1' else ''}"
 
-DISTROOVERRIDES .= ":myir-dmverity"
+# INHERIT is resolved while the machine configuration is parsed.  A later
+# multiconfig can deliberately disable dm-verity for a factory image, so only
+# activate the override when the final configuration still enables it.
+DISTROOVERRIDES .= "${@':myir-dmverity' if d.getVar('ENABLE_DM_VERITY') == '1' else ''}"
 
 WKS_FILE:myir-dmverity = "myd-jmx95-15x15-lpddr5-dmverity-overlay.wks.in"
 
@@ -28,16 +31,15 @@ WKS_FILE:myir-dmverity = "myd-jmx95-15x15-lpddr5-dmverity-overlay.wks.in"
 # add them to do_image_wic[depends] instead — do_image_wic runs LAST.
 # ==========================================================================
 WKS_FILE_DEPENDS:remove = "virtual/bootloader imx-boot"
-do_image_wic[depends] += "imx-boot:do_deploy virtual/bootloader:do_deploy"
-do_image_wic[depends] += "myir-initramfs-dmverity:do_image_complete"
-do_image_wic[depends] += "linux-yocto-fitimage:do_deploy"
+MYIR_DM_VERITY_WIC_DEPENDS = "${@'imx-boot:do_deploy virtual/bootloader:do_deploy myir-initramfs-dmverity:do_image_complete linux-yocto-fitimage:do_deploy' if d.getVar('ENABLE_DM_VERITY') == '1' else ''}"
+do_image_wic[depends] += "${MYIR_DM_VERITY_WIC_DEPENDS}"
 
 # ==========================================================================
 # Kernel container signing is for OS container mode (sec_boot only).
 # dm-verity uses fitImage for kernel integrity — skip container signing.
 # = is strong assignment; beats the ?= in myir-kernel-container-sign.bbclass.
 # ==========================================================================
-MYIR_KERNEL_CONTAINER_ENABLE = "0"
+MYIR_KERNEL_CONTAINER_ENABLE:myir-dmverity = "0"
 
 # Remove OS container files from IMAGE_BOOT_FILES — dm-verity uses fitImage for
 # kernel integrity, so os_cntr_signed*.bin (kernel AHAB container) is not needed.
@@ -58,7 +60,7 @@ python deploy_ahabsigned_mx95() {
     import glob
 
     # Only active for imx-boot recipe
-    if d.getVar('PN') != 'imx-boot':
+    if d.getVar('PN') != 'imx-boot' or d.getVar('ENABLE_DM_VERITY') != '1':
         return
 
     deploydir = d.getVar('DEPLOYDIR')
