@@ -10,6 +10,8 @@
 
 require linux-sec-features.inc
 
+SRC_URI:append:myir-jmx95 = "${@bb.utils.contains('DISTRO_FEATURES', 'apparmor', ' file://apparmor.cfg', '', d)}"
+
 # Parse the i.MX8MP signing task only for the selected board and explicit
 # opt-in.  Other machines do not gain a task, dependency, or source file.
 include ${@'linux-imx8mp-hab-sign.inc' if d.getVar('MACHINE') == 'myd-js8mpq' and d.getVar('MYIR_IMX8MP_HAB_ENABLE') == '1' else ''}

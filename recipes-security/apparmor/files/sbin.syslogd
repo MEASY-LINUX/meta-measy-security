@@ -1,0 +1,5 @@
+# The image links /var/log to /var/volatile/log.
+/var/volatile/log/** rw,
+
+# sysklogd stores its cache via /var/run, which resolves to /run.
+@{run}/syslogd.cache rw,
