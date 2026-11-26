@@ -1,46 +1,43 @@
 # optee-os-rpmb-fs.inc
-# RPMB-FS (Replay Protected Memory Block - File System) 安全存储配置
+# Secure storage configuration for the Replay Protected Memory Block file system
 #
-# 通过 MYIR_OPTEE_STORAGE 和 MYIR_RPMB_MODE 控制 REE-FS 与 RPMB-FS 的切换
+# MYIR_OPTEE_STORAGE selects REE-FS or RPMB-FS, and MYIR_RPMB_MODE selects
+# the RPMB operating mode.
 #
-# 使用方式 (在 local.conf 或 machine.conf 中设置):
+# Set these variables in local.conf or machine.conf.
 #
-#   1. REE-FS (默认):
+#   1. REE-FS (default)
 #      MYIR_OPTEE_STORAGE = "ree"
 #
-#   2. RPMB-FS 软件模拟 (开发测试, 重启丢失):
+#   2. RPMB-FS emulation for development (data is lost on reboot)
 #      MYIR_OPTEE_STORAGE = "rpmb"
 #      MYIR_RPMB_MODE = "emu"
 #
-#   3. RPMB-FS 真实 eMMC + 测试密钥 (开发验证):
+#   3. RPMB-FS on physical eMMC with a test key for development
 #      MYIR_OPTEE_STORAGE = "rpmb"
 #      MYIR_RPMB_MODE = "test"
 #
-#   4. RPMB-FS 真实 eMMC + 烧录密钥 (工厂一次性操作):
+#   4. RPMB-FS on physical eMMC with one-time factory key provisioning
 #      MYIR_OPTEE_STORAGE = "rpmb"
 #      MYIR_RPMB_MODE = "provision"
 #
-#   5. RPMB-FS 真实 eMMC (生产模式, 密钥已预烧录):
+#   5. RPMB-FS on physical eMMC with a pre-programmed production key
 #      MYIR_OPTEE_STORAGE = "rpmb"
 #      MYIR_RPMB_MODE = "prod"
 #
 
-# ---- 默认值 ----
-MYIR_OPTEE_STORAGE ?= "ree"
-MYIR_RPMB_MODE ?= "emu"
-
-# ---- eMMC 设备 ID (i.MX95 通常为 0) ----
+# eMMC device ID (usually 0 on i.MX95)
 MYIR_RPMB_FS_DEV_ID ?= "0"
 
-# ---- RPMB 模拟标志: emu 模式为 1, 其余为 0 ----
+# Use 1 for RPMB emulation and 0 for physical eMMC.
 RPMB_EMU = "${@'1' if d.getVar('MYIR_RPMB_MODE') == 'emu' else '0'}"
 
 # ===================================================================
-# RPMB-FS 条件编译 (当 MYIR_OPTEE_STORAGE = "rpmb" 时生效)
+# RPMB-FS build options for MYIR_OPTEE_STORAGE = "rpmb"
 # ===================================================================
 
-# NXP 下游 Makefile 构建体系 (optee-os_%.imx.bb)
-# 核心: CFG_RPMB_FS=y + CFG_REE_FS=n 实现 RPMB 安全存储
+# The NXP OP-TEE OS Makefile consumes these options. Enable RPMB-FS
+# and disable REE-FS to select RPMB for secure storage.
 RPMB_FS_OEMAKE = " \
     RPMB_EMU=${RPMB_EMU} \
     CFG_REE_FS=n \
@@ -53,38 +50,37 @@ RPMB_FS_OEMAKE = " \
     CFG_TEE_RAM_VA_SIZE=4194304 \
 "
 
-EXTRA_OEMAKE:append = " ${@oe.utils.conditional('MYIR_OPTEE_STORAGE', 'rpmb', '${RPMB_FS_OEMAKE}', '', d)}"
+EXTRA_OEMAKE:append = " ${RPMB_FS_OEMAKE}"
 
 # ===================================================================
-# RPMB 模式选择
+# RPMB operating modes
 # ===================================================================
 
-# --- 模式: emu (软件模拟 RPMB, 无需真实 eMMC RPMB 分区) ---
+# The emu mode routes RPMB requests to tee-supplicant for software emulation.
 EXTRA_OEMAKE:append = " \
     ${@oe.utils.conditional('MYIR_RPMB_MODE', 'emu', \
-        'CFG_RPMB_EMU=y CFG_RPMB_TESTKEY=y', \
+        'CFG_RPMB_EMU=y CFG_RPMB_TESTKEY=y CFG_RPMB_ANNOUNCE_PROBE_CAP=n', \
         '', d)} \
 "
 
-# --- 模式: test (真实 eMMC + 测试密钥) ---
+# The test mode uses physical eMMC with a test key.
 EXTRA_OEMAKE:append = " \
     ${@oe.utils.conditional('MYIR_RPMB_MODE', 'test', \
         'CFG_RPMB_EMU=n CFG_RPMB_TESTKEY=y', \
         '', d)} \
 "
 
-# --- 模式: provision (工厂烧录 RPMB 密钥, 一次性操作) ---
-# CFG_RPMB_WRITE_KEY=y: 将 RPMB 认证密钥写入 eMMC 的安全区域
-# CFG_RPMB_RESET_FAT=y: 重置 RPMB FAT 表
+# The provision mode programs the RPMB key once during manufacturing.
+# CFG_RPMB_WRITE_KEY=y programs the authentication key into eMMC RPMB.
+# CFG_RPMB_RESET_FAT=y resets the RPMB file allocation table.
 EXTRA_OEMAKE:append = " \
     ${@oe.utils.conditional('MYIR_RPMB_MODE', 'provision', \
         'CFG_RPMB_EMU=n CFG_RPMB_WRITE_KEY=y CFG_RPMB_RESET_FAT=y', \
         '', d)} \
 "
 
-# --- 模式: prod (生产模式, 密钥已预烧录) ---
-# 不设置 CFG_RPMB_WRITE_KEY 和 CFG_RPMB_TESTKEY
-# 密钥通过出厂时的 provision 模式已烧录到 eMMC RPMB 分区
+# The prod mode uses the key programmed in eMMC RPMB during factory provisioning.
+# Leave CFG_RPMB_WRITE_KEY and CFG_RPMB_TESTKEY disabled in production.
 EXTRA_OEMAKE:append = " \
     ${@oe.utils.conditional('MYIR_RPMB_MODE', 'prod', \
         'CFG_RPMB_EMU=n', \
@@ -92,28 +88,21 @@ EXTRA_OEMAKE:append = " \
 "
 
 # ===================================================================
-# RPMB 调试日志 (生产模式下关闭)
+# RPMB build configuration log
 # ===================================================================
 python () {
-    storage = d.getVar('MYIR_OPTEE_STORAGE')
     mode = d.getVar('MYIR_RPMB_MODE')
 
-    if storage == 'rpmb':
-        bb.plain('=============================================')
-        bb.plain(' MYIR OP-TEE Storage: RPMB-FS')
-        bb.plain(' RPMB Mode:          %s' % mode)
-
-        mode_desc = {
-            'emu':      'Software emulation (reboot loses data)',
-            'test':     'Real eMMC with test key',
-            'provision': 'FACTORY: Write RPMB key to eMMC (ONE-TIME!)',
-            'prod':     'Production mode (key pre-programmed)',
-        }
-        bb.plain(' Description:        %s' % mode_desc.get(mode, 'Unknown'))
-        bb.plain(' RPMB FS Device ID:  %s' % d.getVar('MYIR_RPMB_FS_DEV_ID'))
-        bb.plain('=============================================')
-    else:
-        bb.plain('=============================================')
-        bb.plain(' MYIR OP-TEE Storage: REE-FS (default)')
-        bb.plain('=============================================')
+    mode_desc = {
+        'emu': 'Software emulation (reboot loses data)',
+        'test': 'Real eMMC with test key',
+        'provision': 'FACTORY: Write RPMB key to eMMC (ONE-TIME!)',
+        'prod': 'Production mode (key pre-programmed)',
+    }
+    bb.plain('=============================================')
+    bb.plain(' MYIR OP-TEE Storage: RPMB-FS')
+    bb.plain(' RPMB Mode:          %s' % mode)
+    bb.plain(' Description:        %s' % mode_desc[mode])
+    bb.plain(' RPMB FS Device ID:  %s' % d.getVar('MYIR_RPMB_FS_DEV_ID'))
+    bb.plain('=============================================')
 }

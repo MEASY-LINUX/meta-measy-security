@@ -1,15 +1,13 @@
 # optee-os_%.imx.bbappend
 # MYIR Security Layer - OP-TEE OS RPMB-FS support
 #
-# 条件引入 RPMB-FS 配置.
-# 不设置 MYIR_OPTEE_STORAGE 时默认使用 REE-FS (NXP 原始行为).
+# The default NXP configuration uses REE-FS. To build for RPMB-FS with a
+# development test key, set these variables in local.conf.
 #
-# 设置方式 (local.conf):
 #   MYIR_OPTEE_STORAGE = "rpmb"
 #   MYIR_RPMB_MODE = "test"
 #
-# 条件引入 Trusted Keys (Early TA) 配置.
-# 设置方式 (local.conf):
+# Enable the Trusted Keys early TA in local.conf.
 #   MYIR_TRUSTED_KEYS = "1"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"

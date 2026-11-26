@@ -1,22 +1,24 @@
 # optee-os-trusted-keys.inc
 # MYIR Security Layer - Trusted Keys Early TA support
 #
-# 将 Linux trusted key 所需的 OP-TEE TA (f04a0fe7) 编译为 Early TA，
-# 使 TA 在 OP-TEE 启动时注册到 TEE bus，kernel trusted-key-tee 驱动
-# 才能通过 TEE bus match 到该 TA 并完成 probe。
+# Build the OP-TEE Trusted Keys TA (f04a0fe7) as an early TA. It registers
+# on the TEE bus at startup so the Linux trusted-key-tee driver can match
+# it and complete its probe.
 #
-# 使用方式 (local.conf):
+# Enable it in local.conf.
 #   MYIR_TRUSTED_KEYS = "1"
 #
-# 同时需要内核侧:
+# Required kernel settings
 #   CONFIG_TRUSTED_KEYS=y
 #   CONFIG_TRUSTED_KEYS_TEE=y
 #   # CONFIG_TRUSTED_KEYS_DCP is not set
-#   内核 cmdline: trusted.source=tee
+#   Kernel command line: trusted.source=tee
 #
-# 硬件依赖:
-#   - i.MX6ULL: 无 CAAM/ELE, trusted key 操作纯软件实现, 需 CFG_WITH_SOFTWARE_PRNG
-#   - i.MX8/9:  自带 CAAM/ELE, 可使用 CFG_IMX_TRUSTED_ARM_CE 实现硬件加速
+# Hardware support
+#   - i.MX6ULL lacks CAAM and ELE. Trusted Keys run in software and require
+#     CFG_WITH_SOFTWARE_PRNG.
+#   - i.MX8 and i.MX9 have CAAM or ELE and can use CFG_IMX_TRUSTED_ARM_CE
+#     for hardware acceleration.
 #
 
 TRUSTED_KEYS_OEMAKE = " \
